@@ -2,6 +2,16 @@
 int DELAY = 40;
 int DELAY_FADE = 40;
 
+//configuration notes:
+//DIG pins- RGB legs
+//SEG pins- common ANODE leg
+
+// number ofleds attached to 8 x 8 driver
+int NUM_LEDS = 7;
+
+// number of seg pins used- this is hooked up to the commo
+int NUM_MAX_SEG = 6;
+
 //colors list
 //primary...
 byte BLUE = B0001;
@@ -25,14 +35,18 @@ int resetPin = A0;
 LedControl lc = LedControl(dataIn, clock, load, numMaxim7219);
 
 void setColorWithFade(int ornament, byte color, bool isFade){
+  //RGB_0 = [0, 1, 2]; RGB_1 = [3, 4, 5]
+  int whichRGB = ornament/NUM_MAX_SEG;
+  int whichDIG = ornament % (NUM_LEDS-1);  
+  
   if(isFade){
     for(int intensity =4 ; intensity <16; intensity++){
       lc.setIntensity(0, intensity);
-      setColor(ornament, color);
+      setColor(whichDIG, color, whichRGB*3);
       delay(DELAY_FADE);
     }
   } else {
-    setColor(ornament, color);
+    setColor(whichDIG, color, whichRGB*3);
   }
 }
 
@@ -47,20 +61,20 @@ void reset(int ornament){
   
   return;
 }
-void setColor(int ornament, byte color){
+void setColor(int digPin, byte color, int offset){
   //  note to self: 
   // setLed(0, SEG, DIG, state);
   // DIG = 0 => DP, 1 => A, 2 =>B, etc.
 
 //  blue color
   byte flag = B0001;
-  lc.setLed(0, 0, ornament, (color & flag) );
+  lc.setLed(0, 0+offset, digPin, (color & flag) );
 
 // green color
-  lc.setLed(0, 1, ornament, (color >>1 & flag) );
+  lc.setLed(0, 1+offset, digPin, (color >>1 & flag) );
   
 //  red color
-  lc.setLed(0, 2, ornament, (color >>2 & flag) );
+  lc.setLed(0, 2+offset, digPin, (color >>2 & flag) );
 
   return;
 }
@@ -90,7 +104,9 @@ void loop(){
     delay(DELAY);
     setColorWithFade(4, list[color+4], false);
     delay(DELAY);
-    setColorWithFade(5, list[color], false);
-    lc.setLed(0, 5, 0, true);
+    setColorWithFade(5, list[color+5], false);
+    delay(DELAY);
+    setColorWithFade(6, list[color], false);
+    delay(500);
   }
 }
