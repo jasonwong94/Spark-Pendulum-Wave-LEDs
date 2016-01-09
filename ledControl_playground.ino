@@ -36,7 +36,9 @@ int dataIn = 12;
 int clock = 11;
 int load = 10;
 int numMaxim7219 = 1;
-int resetPin = A0;
+int resetPin = 2;
+volatile bool sequenceActivated = true;
+
 LedControl lc = LedControl(dataIn, clock, load, numMaxim7219);
 
 void setColorWithFade(int ornament, byte color, bool isFade){
@@ -91,40 +93,57 @@ void setColor(int digPin, byte color, int offset){
 
 // LedControl playground
 void setup(){
-  pinMode(resetPin, INPUT_PULLUP);
+  pinMode(resetPin, OUTPUT);
   Serial.begin(9600);
   lc.shutdown(0, false);
   lc.setIntensity(0, 15);
   lc.clearDisplay(0);
+  attachInterrupt(0, resetSequence, CHANGE);
   
   if(TEST)
-    testLEDs(4);  
+    testLEDs(0);  
 }
 
+void resetSequence(){
+  sequenceActivated = !sequenceActivated;
+}
 void loop(){
-//  blue, green, red 
-  byte list2[]= {WHITE, MAGENTA, BLUE, CYAN, GREEN, YELLOW, RED};
-//  for(int color = 0; color< 7; color++){
-//    setColorWithFade(0, LIST[color], false);
-//    delay(DELAY);  
-//    setColorWithFade(1, LIST[color], false);
-//    delay(DELAY);
-//    setColorWithFade(2, LIST[color], false);
-//    delay(DELAY);
-//    setColorWithFade(3, LIST[color], false);
-//    delay(DELAY);
-//    setColorWithFade(4, LIST[color], false);
-//    delay(DELAY);
-//    setColorWithFade(5, LIST[color], false);
-//    delay(DELAY);
-//    setColorWithFade(6, LIST[color], false);
-//    delay(DELAY);
-//  }
+  sequence();
+  //if switch[0] = on => reset
+  //else => continue
+}
+
+void sequence(){    
+  if(sequenceActivated){
+    Serial.println("true"); 
+  } else {
+    Serial.println("false"); 
+  }
+  for(int color = 0; (color< 7 && sequenceActivated); color++){
+    setColorWithFade(0, LIST[color], false);
+    delay(DELAY);  
+    setColorWithFade(1, LIST[color], false);
+    delay(DELAY);
+    setColorWithFade(2, LIST[color], false);
+    delay(DELAY);
+    setColorWithFade(3, LIST[color], false);
+    delay(DELAY);
+    setColorWithFade(4, LIST[color], false);
+    delay(DELAY);
+    setColorWithFade(5, LIST[color], false);
+    delay(DELAY);
+    setColorWithFade(6, LIST[color], false);
+    delay(DELAY);
+  }
+
+  if(!sequenceActivated)
+    for(int ornament = 0; ornament< NUM_LEDS; ornament++)
+      reset(ornament);
 }
 
 //note: specificLED starts at 0
 void testLEDs(int specificLED){
-  if(specificLED == NULL){
+  if(specificLED == -1){
     for(int led = 0; led<NUM_LEDS; led++){  
       for(int color = 0; color<7; color++){
         setColorWithFade(led, LIST[color], false);
