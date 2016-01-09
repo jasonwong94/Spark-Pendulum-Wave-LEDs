@@ -1,6 +1,8 @@
 #include "LedControl.h"
 int DELAY = 40;
-int DELAY_FADE = 40;
+int DELAY_FADE = 5;
+
+bool TEST= true;
 
 //configuration notes:
 //DIG pins- RGB legs
@@ -26,6 +28,9 @@ byte CYAN = GREEN | BLUE;
 //tertiary..
 byte WHITE = RED | GREEN | BLUE;
 
+//list..
+byte LIST[]= {RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA, WHITE, RED};
+
 //pin configuration
 int dataIn = 12;
 int clock = 11;
@@ -40,7 +45,12 @@ void setColorWithFade(int ornament, byte color, bool isFade){
   int whichDIG = ornament % (NUM_LEDS-1);  
   
   if(isFade){
-    for(int intensity =4 ; intensity <16; intensity++){
+    for(int intensity =0 ; intensity <16; intensity++){
+      lc.setIntensity(0, intensity);
+      setColor(whichDIG, color, whichRGB*3);
+      delay(DELAY_FADE);
+    }
+    for(int intensity =15 ; intensity >=0; intensity--){
       lc.setIntensity(0, intensity);
       setColor(whichDIG, color, whichRGB*3);
       delay(DELAY_FADE);
@@ -86,27 +96,45 @@ void setup(){
   lc.shutdown(0, false);
   lc.setIntensity(0, 15);
   lc.clearDisplay(0);
+  
+  if(TEST)
+    testLEDs(4);  
 }
 
 void loop(){
 //  blue, green, red 
-  byte list[]= {RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA, WHITE, RED};
   byte list2[]= {WHITE, MAGENTA, BLUE, CYAN, GREEN, YELLOW, RED};
+//  for(int color = 0; color< 7; color++){
+//    setColorWithFade(0, LIST[color], false);
+//    delay(DELAY);  
+//    setColorWithFade(1, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(2, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(3, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(4, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(5, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(6, LIST[color], false);
+//    delay(DELAY);
+//  }
+}
 
-  for(int color = 0; color< 7; color++){
-    setColorWithFade(0, list[color], false);
-    delay(DELAY);  
-    setColorWithFade(1, list[color+1], false);
-    delay(DELAY);
-    setColorWithFade(2, list[color+2], false);
-    delay(DELAY);
-    setColorWithFade(3, list[color+3], false);
-    delay(DELAY);
-    setColorWithFade(4, list[color+4], false);
-    delay(DELAY);
-    setColorWithFade(5, list[color+5], false);
-    delay(DELAY);
-    setColorWithFade(6, list[color], false);
-    delay(500);
+//note: specificLED starts at 0
+void testLEDs(int specificLED){
+  if(specificLED == NULL){
+    for(int led = 0; led<NUM_LEDS; led++){  
+      for(int color = 0; color<7; color++){
+        setColorWithFade(led, LIST[color], false);
+        delay(250);
+      }
+    }
+  } else {
+    for(int color = 0; color<7; color++){
+      setColorWithFade(specificLED, LIST[color], false);
+      delay(500);
+    }
   }
 }
