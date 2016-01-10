@@ -31,6 +31,18 @@ byte WHITE = RED | GREEN | BLUE;
 //list..
 byte LIST[]= {RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA, WHITE, RED};
 
+struct SequenceItem {
+  int ornamentId;
+  byte color;
+};
+
+#define SEQUENCE_STATE_MAX 4
+
+SequenceItem Sequences[2][4] = {
+  { { 0, RED }, { 1, YELLOW}, { 2, GREEN }, { 3, RED } },
+  { { 0, BLUE }, { 1, WHITE }, { 2, MAGENTA }, { 3, RED} }
+};
+
 //pin configuration
 int dataIn = 12;
 int clock = 11;
@@ -38,6 +50,10 @@ int load = 10;
 int numMaxim7219 = 1;
 int resetPin = 2;
 volatile bool sequenceActivated = true;
+
+int sequenceNumber = 0;
+int sequenceState = 0;
+unsigned long lastColorSwitchTime = 0;
 
 LedControl lc = LedControl(dataIn, clock, load, numMaxim7219);
 
@@ -70,8 +86,6 @@ void reset(int ornament){
   lc.setLed(0, 2, ornament, false );
   
   delay( DELAY );
-  
-  return;
 }
 void setColor(int digPin, byte color, int offset){
   //  note to self: 
@@ -100,45 +114,61 @@ void setup(){
   lc.clearDisplay(0);
   attachInterrupt(0, resetSequence, CHANGE);
   
-  if(TEST)
-    testLEDs(0);  
+//  if(TEST)
+//    testLEDs(0);  
 }
 
 void resetSequence(){
   sequenceActivated = !sequenceActivated;
 }
 void loop(){
-  sequence();
+  unsigned long currentTime = millis();
+  
+  sequence(currentTime);
   //if switch[0] = on => reset
   //else => continue
 }
 
-void sequence(){    
+void sequence(unsigned long currentTime){    
   if(sequenceActivated){
     Serial.println("true"); 
   } else {
     Serial.println("false"); 
   }
-  for(int color = 0; (color< 7 && sequenceActivated); color++){
-    setColorWithFade(0, LIST[color], false);
-    delay(DELAY);  
-    setColorWithFade(1, LIST[color], false);
-    delay(DELAY);
-    setColorWithFade(2, LIST[color], false);
-    delay(DELAY);
-    setColorWithFade(3, LIST[color], false);
-    delay(DELAY);
-    setColorWithFade(4, LIST[color], false);
-    delay(DELAY);
-    setColorWithFade(5, LIST[color], false);
-    delay(DELAY);
-    setColorWithFade(6, LIST[color], false);
-    delay(DELAY);
+
+  auto sequenceItem = Sequences[sequenceNumber][sequenceState];
+
+  setColorWithFade(sequenceItem.ornamentId, sequenceItem.color, false);
+
+  if (currentTime > lastColorSwitchTime + DELAY) {
+    lastColorSwitchTime = currentTime;
+    sequenceState++;
   }
 
-  if(!sequenceActivated)
-    for(int ornament = 0; ornament< NUM_LEDS; ornament++)
-      reset(ornament);
+  if (sequenceState == 3) {
+    sequenceState = 0;
+  }
+  
+//  for(int color = 0; (color< 7 && sequenceActivated); color++){
+//    setColorWithFade(0, LIST[color], false);
+//    delay(DELAY);  
+//    setColorWithFade(1, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(2, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(3, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(4, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(5, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(6, LIST[color], false);
+//    delay(DELAY);
+//  }
+
+//  if(!sequenceActivated)
+//    for(int ornament = 0; ornament< NUM_LEDS; ornament++)
+//      reset(ornament);
 }
 
 //note: specificLED starts at 0
@@ -147,7 +177,7 @@ void testLEDs(int specificLED){
     for(int led = 0; led<NUM_LEDS; led++){  
       for(int color = 0; color<7; color++){
         setColorWithFade(led, LIST[color], false);
-        delay(250);
+        delay(1000);
       }
     }
   } else {
