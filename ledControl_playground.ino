@@ -1,4 +1,5 @@
 #include "LedControl.h"
+#include <avr/pgmspace.h>
 int DELAY = 40;
 int DELAY_FADE = 5;
 
@@ -32,15 +33,17 @@ byte WHITE = RED | GREEN | BLUE;
 byte LIST[]= {RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA, WHITE, RED};
 
 struct SequenceItem {
-  int ornamentId;
+  byte ornamentId;
   byte color;
 };
 
-#define SEQUENCE_STATE_MAX 4
+#define SEQUENCE_STATE_MAX 33
 
-SequenceItem Sequences[2][4] = {
-  { { 0, RED }, { 1, YELLOW}, { 2, GREEN }, { 3, RED } },
-  { { 0, BLUE }, { 1, WHITE }, { 2, MAGENTA }, { 3, RED} }
+const SequenceItem Sequences[2][SEQUENCE_STATE_MAX] = {
+  { { 0, RED }, { 1, RED}, { 7, YELLOW }, { 3, RED }, { 4, RED }, { 5, BLUE }, { 6, BLUE }, { 7, BLUE }, { 8, BLUE }, { 9, BLUE }, { 10, BLUE },
+    { 0, BLUE }, { 1, BLUE}, { 2, RED }, { 3, BLUE }, { 4, GREEN }, { 5, BLUE }, { 6, GREEN }, { 7, MAGENTA }, { 8, YELLOW }, { 9, RED }, { 10, GREEN },
+    { 0, BLUE }, { 1, BLUE}, { 2, GREEN }, { 3, BLUE }, { 4, YELLOW }, { 5, BLUE }, { 6, YELLOW }, { 7, MAGENTA }, { 8, MAGENTA }, { 9, BLUE }, { 10, GREEN }},
+  { { 0, RED }, { 1, YELLOW}, { 2, GREEN }, { 3, RED }, { 4, RED }, { 5, RED }, { 6, RED }, { 7, RED }, { 8, RED }, { 9, RED }, { 10, RED } }
 };
 
 //pin configuration
@@ -53,14 +56,15 @@ volatile bool sequenceActivated = true;
 
 int sequenceNumber = 0;
 int sequenceState = 0;
+int cycleOffset;
 unsigned long lastColorSwitchTime = 0;
 
 LedControl lc = LedControl(dataIn, clock, load, numMaxim7219);
 
 void setColorWithFade(int ornament, byte color, bool isFade){
   //RGB_0 = [0, 1, 2]; RGB_1 = [3, 4, 5]
-  int whichRGB = ornament/NUM_MAX_SEG;
-  int whichDIG = ornament % (NUM_LEDS-1);  
+  int whichRGB = ornament/8;
+  int whichDIG = ornament % (8);  
   
   if(isFade){
     for(int intensity =0 ; intensity <16; intensity++){
@@ -123,10 +127,76 @@ void resetSequence(){
 }
 void loop(){
   unsigned long currentTime = millis();
-  
-  sequence(currentTime);
+  Serial.println("HI");
+  //cycleSequence(currentTime, 100);
+  randomSequence(currentTime);
   //if switch[0] = on => reset
   //else => continue
+}
+
+
+
+bool cycleSequence(unsigned long currentTime, int timesToCycle){
+  //Serial.println("EDEWD");    
+  if(sequenceActivated){
+    //Serial.println("true"); 
+  } else {
+    //Serial.println("false"); 
+  }
+
+  for (int i = 0; i < SEQUENCE_STATE_MAX; i++) {
+    auto sequenceItem = Sequences[sequenceNumber][i];
+    setColorWithFade((sequenceItem.ornamentId + cycleOffset)%11, sequenceItem.color, false);
+  }
+
+  if (currentTime > lastColorSwitchTime + DELAY) {
+    Serial.println("Inc");
+    lastColorSwitchTime = currentTime;
+    cycleOffset++;
+  }
+
+  if (cycleOffset == timesToCycle) {
+    return true;
+  }
+
+  return false;
+  
+//  for(int color = 0; (color< 7 && sequenceActivated); color++){
+//    setColorWithFade(0, LIST[color], false);
+//    delay(DELAY);  
+//    setColorWithFade(1, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(2, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(3, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(4, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(5, LIST[color], false);
+//    delay(DELAY);
+//    setColorWithFade(6, LIST[color], false);
+//    delay(DELAY);
+//  }
+
+//  if(!sequenceActivated)
+//    for(int ornament = 0; ornament< NUM_LEDS; ornament++)
+//      reset(ornament);
+}
+
+bool randomUpdate = false;
+void randomSequence(unsigned long currentTime) {
+  if (randomUpdate) {
+    byte ornamentId = random(0, 12);
+    byte color = random(0, 8);
+  
+    setColorWithFade(ornamentId, LIST[color], false);
+    randomUpdate = false;
+  }
+
+  if (currentTime > lastColorSwitchTime + 20) {
+    lastColorSwitchTime = currentTime;
+    randomUpdate = true;  
+  }
 }
 
 void sequence(unsigned long currentTime){    
@@ -136,16 +206,19 @@ void sequence(unsigned long currentTime){
     Serial.println("false"); 
   }
 
-  auto sequenceItem = Sequences[sequenceNumber][sequenceState];
+  byte ornamentId = Sequences[sequenceNumber][sequenceState].ornamentId;
+  byte color = Sequences[sequenceNumber][sequenceState].color;
 
-  setColorWithFade(sequenceItem.ornamentId, sequenceItem.color, false);
+  Serial.println(ornamentId);
+
+  setColorWithFade(ornamentId, color, false);
 
   if (currentTime > lastColorSwitchTime + DELAY) {
     lastColorSwitchTime = currentTime;
     sequenceState++;
   }
 
-  if (sequenceState == 3) {
+  if (sequenceState == SEQUENCE_STATE_MAX) {
     sequenceState = 0;
   }
   
